@@ -1,5 +1,6 @@
 import Conversation from "../models/conversationModels.js";
 import Message from "../models/messageModels.js";
+import { getReceiverSocketId, io } from "../socket/socket.js";
 export const sendMessage = async (req, res) => {
     try {
         const { message } = req.body;
@@ -33,6 +34,14 @@ export const sendMessage = async (req, res) => {
             conversation.save(),
         ]);
 
+        // REAL TIME MESSAGING CORE LOGIC
+        const receiverSocketId = getReceiverSocketId(receiverId);
+        if (receiverSocketId) {
+            // io.to() is used to send events to a specific client
+            io.to(receiverSocketId).emit("newMessage", newMessage);
+            // then -> Messages.js & useLitenMessages.js
+        }
+
         res.status(201).json(newMessage);
     } catch (error) {
         console.error(error);
@@ -42,7 +51,7 @@ export const sendMessage = async (req, res) => {
 
 export const getMessage = async (req, res) => {
     try {
-        const receiverId = req.params.id;
+        const {id :receiverId } = req.params;
         const senderId = req.user._id;
 
         let conversation = await Conversation.findOne({
